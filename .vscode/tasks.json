@@ -1,0 +1,34 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "setup",
+      "detail": "Install frontend dependencies",
+      "type": "shell",
+      "command": "pnpm i",
+      "problemMatcher": []
+    },
+    {
+      "label": "build",
+      "detail": "Build plugin zip (frontend + backend layer)",
+      "type": "shell",
+      "command": "./scripts/build-local.sh",
+      "problemMatcher": []
+    },
+    {
+      "label": "watch",
+      "detail": "Watch frontend rebuild",
+      "type": "shell",
+      "command": "pnpm run watch",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "test",
+      "detail": "Run python unit tests",
+      "type": "shell",
+      "command": "python3 -m pytest tests -q",
+      "problemMatcher": []
+    }
+  ]
+}

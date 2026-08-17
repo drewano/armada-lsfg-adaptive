@@ -1,0 +1,43 @@
+{
+  "name": "armada-lsfg-adaptive",
+  "version": "0.1.0",
+  "description": "Adaptive LSFG-VK frame generation for Armada OS (Decky plugin)",
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c -w",
+    "test": "echo \"frontend tests: none\" && exit 0"
+  },
+  "devDependencies": {
+    "@decky/api": "^1.1.3",
+    "@decky/rollup": "^1.0.1",
+    "@decky/ui": "^4.11.0",
+    "@types/react": "18.3.3",
+    "@types/webpack": "5.28.5",
+    "react-icons": "^4.10.1",
+    "rollup": "^3.27.2",
+    "typescript": "^5.1.6"
+  },
+  "peerDependencyRules": {
+    "allowedVersions": {
+      "react": "18.3.1",
+      "react-dom": "18.3.1"
+    },
+    "ignoreMissing": [
+      "react",
+      "react-dom"
+    ]
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "react": "18.3.1",
+        "react-dom": "18.3.1"
+      },
+      "ignoreMissing": [
+        "react",
+        "react-dom"
+      ]
+    }
+  }
+}

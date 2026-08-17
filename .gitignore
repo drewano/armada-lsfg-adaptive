@@ -1,0 +1,24 @@
+# Build outputs
+dist/
+backend/out/
+bin/
+out/
+node_modules/
+
+# Decky CLI binary and local tooling
+cli/
+decky_plugin.py
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local artifacts
+*.zip
+*.sha256
+
+# Local tooling / editor state
+.venv/
+.zcode/
+.DS_Store

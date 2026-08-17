@@ -1,0 +1,11 @@
+{
+  "name": "Armada LSFG Adaptive",
+  "author": "Andrew Assef",
+  "flags": ["debug"],
+  "api_version": 1,
+  "publish": {
+    "tags": ["performance", "frame generation", "utility"],
+    "description": "Adaptive LSFG-VK frame generation for Armada OS handhelds. Requires Lossless Scaling on Steam.",
+    "image": "https://raw.githubusercontent.com/drewano/armada-lsfg-adaptive/main/assets/banner.png"
+  }
+}
