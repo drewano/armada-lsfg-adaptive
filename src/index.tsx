@@ -4,7 +4,6 @@ import {
   Focusable,
   PanelSection,
   PanelSectionRow,
-  SliderField,
   ToggleField,
   staticClasses,
 } from "@decky/ui";
@@ -102,14 +101,32 @@ function showError(prefix: string, error?: string) {
   toaster.toast({ title: "Armada LSFG", body: `${prefix}${error ? ` : ${error}` : ""}` });
 }
 
+// Fixed FPS targets — a dropdown survives the narrow QAM panel much better
+// than a slider, and these are the values that make sense against panel
+// refresh rates. The current value is always offered even if not listed.
+const FPS_OPTIONS = [30, 45, 60, 90, 120, 144, 240];
+
+function fpsOptions(current: number) {
+  const values = FPS_OPTIONS.includes(current)
+    ? FPS_OPTIONS
+    : [...FPS_OPTIONS, current].sort((a, b) => a - b);
+  return values.map((v) => ({ data: v, label: `${v} FPS` }));
+}
+
 function StateLine({ ok, warn, label, detail }: { ok?: boolean; warn?: boolean; label: string; detail?: string | null }) {
   const icon = warn ? "△" : ok ? "✓" : "✗";
   return (
     <PanelSectionRow>
-      <div className={staticClasses.Text} style={{ display: "flex", gap: "8px", paddingTop: "4px", paddingBottom: "4px", fontSize: "13px" }}>
-        <span style={{ color: warn ? "#e6b450" : ok ? "#7dcf6e" : "#d97777" }}>{icon}</span>
-        <span>{label}</span>
-        {detail ? <span style={{ color: "#8a9ba8", marginLeft: "auto" }}>{detail}</span> : null}
+      <div style={{ paddingTop: "4px", paddingBottom: detail ? "2px" : "4px" }}>
+        <div style={{ display: "flex", gap: "8px", fontSize: "13px" }}>
+          <span style={{ color: warn ? "#e6b450" : ok ? "#7dcf6e" : "#d97777" }}>{icon}</span>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+        </div>
+        {detail ? (
+          <div style={{ fontSize: "12px", color: "#8a9ba8", paddingLeft: "20px", wordBreak: "break-word" }}>
+            {detail}
+          </div>
+        ) : null}
       </div>
     </PanelSectionRow>
   );
@@ -143,15 +160,16 @@ function ProfileEditor({ profile, running, onChange }: { profile: ProfileData; r
   return (
     <>
       <PanelSectionRow>
-        <Focusable style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "6px" }}>
-          <span style={{ fontSize: "15px", flex: 1 }} onClick={() => setOpen(!open)}>
+        <Focusable
+          style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px", width: "100%" }}
+          onClick={() => setOpen(!open)}
+        >
+          <span style={{ fontSize: "13px", color: "#8a9ba8", width: "12px" }}>{open ? "▾" : "▸"}</span>
+          <span style={{ flex: 1, fontSize: "14px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {running ? "🟢 " : ""}
             {profile.name}
-            {!profile.enabled ? t(" (désactivé)", " (disabled)") : ""}
+            {!profile.enabled ? t(" (off)", " (off)") : ""}
           </span>
-          <ButtonItem layout="inline" onClick={() => setOpen((v) => !v)}>
-            {open ? t("Replier", "Collapse") : t("Déplier", "Expand")}
-          </ButtonItem>
         </Focusable>
       </PanelSectionRow>
       <PanelSectionRow>
@@ -179,14 +197,12 @@ function ProfileEditor({ profile, running, onChange }: { profile: ProfileData; r
           {profile.adaptive ? (
             <>
               <PanelSectionRow>
-                <SliderField
+                <DropdownItem
                   label={t("FPS cible", "Target FPS")}
-                  description={t("30 à 240 FPS", "30 to 240 FPS")}
-                  value={profile.target_fps}
-                  min={30}
-                  max={240}
-                  step={5}
-                  onChange={(v) => mutate(() => setProfileTargetFps(profile.key, v), () => {})}
+                  menuLabel={t("FPS cible", "Target FPS")}
+                  rgOptions={fpsOptions(profile.target_fps)}
+                  selectedOption={profile.target_fps}
+                  onChange={(o) => mutate(() => setProfileTargetFps(profile.key, o.data), () => {})}
                 />
               </PanelSectionRow>
               <PanelSectionRow>
@@ -237,7 +253,7 @@ function ProfileEditor({ profile, running, onChange }: { profile: ProfileData; r
             />
           </PanelSectionRow>
           <PanelSectionRow>
-            <div style={{ fontSize: "12px", color: "#8a9ba8", paddingTop: "4px" }}>
+            <div style={{ fontSize: "12px", color: "#8a9ba8", paddingTop: "4px", wordBreak: "break-all" }}>
               {t("Exécutables", "Executables")}: {profile.active_in.join(", ")}
             </div>
           </PanelSectionRow>
@@ -458,6 +474,7 @@ function Content() {
               <DropdownItem
                 label={t("Jeu à ajouter", "Game to add")}
                 menuLabel={t("Choisis un jeu installé", "Pick an installed game")}
+                strDefaultLabel="—"
                 rgOptions={addableGames.map((game) => ({
                   data: game.appid,
                   label: `${game.name} (${game.executables.length} exe)`,
