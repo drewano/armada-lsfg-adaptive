@@ -1,7 +1,7 @@
 {
   "name": "Armada LSFG Adaptive",
   "author": "Andrew Assef",
-  "flags": ["debug"],
+  "flags": [],
   "api_version": 1,
   "publish": {
     "tags": ["performance", "frame generation", "utility"],

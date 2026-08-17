@@ -91,7 +91,7 @@ python3 -m pytest tests -q          # backend unit tests
 ./scripts/build-local.sh --skip-backend   # zip without rebuilding the layer
 ```
 
-The Vulkan layer is compiled in `backend/` (fedora:41, linux/arm64) from
+The Vulkan layer is compiled in `engine/` (fedora:41, linux/arm64) from
 [`eugeniosegala/lsfg-vk-experimental`](https://github.com/eugeniosegala/lsfg-vk-experimental)
 at the commit pinned in the Dockerfile. Alternative engine without adaptive but
 proven on aarch64: `--build-arg LSFG_SOURCE=zensenshi`
@@ -112,4 +112,4 @@ push a `v*` tag and the zip + sha256 land on the release page.
   [SteamDeckHomebrew](https://github.com/SteamDeckHomebrew).
 
 Licenses: see `LICENSE` (plugin code, BSD-3) and `THIRD_PARTY_NOTICES.md` (engine
-GPL-3.0 — the distributed layer is exactly the source pinned in `backend/Dockerfile`).
+GPL-3.0 — the distributed layer is exactly the source pinned in `engine/Dockerfile`).

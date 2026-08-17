@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the lsfg-vk Vulkan layer and emit artifacts to /backend/out:
+# Build the lsfg-vk Vulkan layer and emit artifacts to /engine/out:
 #   - liblsfg-vk-layer.so   (the layer library)
 #   - layer-info.json       (metadata consumed by the plugin's layer manager)
 set -euo pipefail
@@ -22,7 +22,7 @@ case "$LSFG_SOURCE" in
 esac
 
 SRC=/work/src
-OUT=/backend/out
+OUT=/engine/out
 mkdir -p "$SRC" "$OUT"
 
 SLUG="${REPO#https://github.com/}"
@@ -75,7 +75,7 @@ for manifest in manifests:
     except (json.JSONDecodeError, OSError):
         continue
 
-lib = pathlib.Path("/backend/out") / os.environ["LIB_NAME"]
+lib = pathlib.Path("/engine/out") / os.environ["LIB_NAME"]
 with open(lib, "rb") as fh:
     header = fh.read(20)
 if header[:4] != b"\x7fELF":
@@ -94,7 +94,7 @@ info = {
     "api_version": api_version,
     "implementation_version": "2",
 }
-(pathlib.Path("/backend/out") / "layer-info.json").write_text(json.dumps(info, indent=2))
+(pathlib.Path("/engine/out") / "layer-info.json").write_text(json.dumps(info, indent=2))
 print(json.dumps(info, indent=2))
 PY
 

@@ -5,13 +5,13 @@
 The `bin/liblsfg-vk-layer.so` shipped in the plugin zip is a build of
 https://github.com/eugeniosegala/lsfg-vk-experimental (a fork of
 https://github.com/PancakeTAS/lsfg-vk), at the pinned commit declared in
-`backend/Dockerfile` (default `LSFG_REF`). The exact engine version is recorded in
+`engine/Dockerfile` (default `LSFG_REF`). The exact engine version is recorded in
 `bin/layer-info.json` inside each release.
 
 - License: **GNU GPL-3.0** — full text: https://www.gnu.org/licenses/gpl-3.0.txt
   (also present in the upstream repository as `LICENSE.md`).
 - Corresponding source: the upstream repository at the pinned commit, buildable with
-  the commands in `backend/entrypoint.sh`.
+  the commands in `engine/entrypoint.sh`.
 
 This plugin's own code (Python backend, TypeScript frontend, scripts) is BSD-3-Clause
 (see `LICENSE`) and only aggregates the GPL binary; the combined release zip

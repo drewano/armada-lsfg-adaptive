@@ -23,11 +23,11 @@ pnpm run build
 
 if [ "$SKIP_BACKEND" != "--skip-backend" ]; then
   echo "==> [2/3] backend build (linux/arm64 docker)"
-  docker build --platform linux/arm64 -t armada-lsfg-backend ./backend
+  docker build --platform linux/arm64 -t armada-lsfg-backend ./engine
   rm -rf bin
-  mkdir -p bin backend/out
-  docker run --rm -v "$ROOT/backend/out:/backend/out" armada-lsfg-backend
-  cp backend/out/* bin/
+  mkdir -p bin engine/out
+  docker run --rm -v "$ROOT/engine/out:/engine/out" armada-lsfg-backend
+  cp engine/out/* bin/
 fi
 [ -f bin/liblsfg-vk-layer.so ] || { echo "bin/liblsfg-vk-layer.so missing (backend not built?)" >&2; exit 1; }
 

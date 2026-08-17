@@ -1,6 +1,6 @@
 # Build outputs
 dist/
-backend/out/
+engine/out/
 bin/
 out/
 node_modules/

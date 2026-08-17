@@ -1,8 +1,21 @@
 {
   "name": "armada-lsfg-adaptive",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Adaptive LSFG-VK frame generation for Armada OS (Decky plugin)",
   "type": "module",
+  "remote_binary_bundling": true,
+  "remote_binary": [
+    {
+      "url": "https://github.com/drewano/armada-lsfg-adaptive/releases/download/v0.1.0/liblsfg-vk-layer.so",
+      "sha256hash": "dc7e3eeed037c913bd760f18e86212440d0c3d060ba81779b8c36074de1fd982",
+      "name": "liblsfg-vk-layer.so"
+    },
+    {
+      "url": "https://github.com/drewano/armada-lsfg-adaptive/releases/download/v0.1.0/layer-info.json",
+      "sha256hash": "af8e322aabd7c1015e3576f36b096acebc233aba24e746d945a91186aa923086",
+      "name": "layer-info.json"
+    }
+  ],
   "scripts": {
     "build": "rollup -c",
     "watch": "rollup -c -w",
