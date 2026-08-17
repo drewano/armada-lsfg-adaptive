@@ -128,4 +128,18 @@ def run_doctor(layer_manager, conf_path: Path, bin_dir: Path) -> dict:
         except (OSError, subprocess.SubprocessError) as exc:
             cli_info["error"] = str(exc)
     out["cli"] = cli_info
+
+    # our own view of conf.toml (what the engine should see)
+    conf_info: dict = {"exists": Path(conf_path).is_file()}
+    if conf_info["exists"]:
+        try:
+            import tomllib
+
+            doc = tomllib.loads(Path(conf_path).read_text(encoding="utf-8"))
+            conf_info["version"] = doc.get("version")
+            conf_info["version_ok"] = doc.get("version") == 2
+            conf_info["profiles"] = len(doc.get("profile", []) or [])
+        except Exception as exc:  # noqa: BLE001
+            conf_info["error"] = str(exc)
+    out["conf"] = conf_info
     return out

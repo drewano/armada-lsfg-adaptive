@@ -47,10 +47,26 @@ _VERSION_RE = re.compile(r"(?m)^version\s*=\s*\S+.*$")
 
 
 def with_conf_version(global_section: str) -> str:
-    """Ensure the top-level `version = 2` marker the v2 engine expects."""
-    if _VERSION_RE.search(global_section):
-        return _VERSION_RE.sub(CONF_VERSION_KEY, global_section, count=1)
-    return CONF_VERSION_KEY + "\n\n" + global_section
+    """Re-emit the preamble canonically: `version = 2` at the true TOML top
+    level, then the [global] table.
+
+    A line-level regex cannot know which TOML table a `version =` line sits
+    in: if a legacy file carried it inside [global] (parsed as
+    global.version), replacing it in place left the engine without a
+    root-level version and it rejected the whole file. Rewriting the
+    preamble deterministically fixes any placement history.
+    """
+    lines = [
+        line for line in global_section.splitlines()
+        if not _VERSION_RE.match(line) and line.strip() != "[global]"
+    ]
+    body = "\n".join(lines).strip("\n")
+    out = CONF_VERSION_KEY + "\n\n[global]\n"
+    if body:
+        out += body
+        if not out.endswith("\n"):
+            out += "\n"
+    return out
 
 VALID_MULTIPLIERS = (2, 3, 4)
 VALID_FLOW_SCALES = (0.25, 0.5, 0.75, 1.0)

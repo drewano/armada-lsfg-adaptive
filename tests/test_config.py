@@ -156,3 +156,42 @@ def test_profile_from_block_defaults():
     assert p.key == "a.exe"
     assert p.enabled is True
     assert p.adaptive is False
+
+
+def test_conf_version_survives_legacy_misplacement(tmp_path):
+    # a legacy file carried `version = 2` INSIDE [global] (parsed as
+    # global.version): the rewrite must move it back to the true top level
+    conf = tmp_path / "conf.toml"
+    conf.write_text(
+        '[global]\nversion = 2\ndll = "/d.dll"\n',
+        encoding="utf-8",
+    )
+    write_config(conf, [make_profile()])
+    doc = load_config(conf)
+    assert doc["version"] == 2
+    assert "version" not in doc["global"]
+    assert doc["global"]["dll"] == "/d.dll"
+
+
+def test_conf_version_normalized_from_v1(tmp_path):
+    conf = tmp_path / "conf.toml"
+    conf.write_text(
+        'version = 1\n\n[global]\ndll = "/d.dll"\n',
+        encoding="utf-8",
+    )
+    write_config(conf, [make_profile()])
+    doc = load_config(conf)
+    assert doc["version"] == 2
+
+
+def test_conf_version_keeps_global_body(tmp_path):
+    conf = tmp_path / "conf.toml"
+    conf.write_text(
+        'version = 2\n\n[global]\ndll = "/d.dll"\nallow_fp16 = true\n',
+        encoding="utf-8",
+    )
+    write_config(conf, [make_profile()])
+    doc = load_config(conf)
+    assert doc["version"] == 2
+    assert doc["global"]["allow_fp16"] is True
+    assert doc["global"]["dll"] == "/d.dll"

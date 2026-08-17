@@ -80,6 +80,7 @@ interface DoctorResult {
   arch?: { lib?: string | null; expected?: string; ok?: boolean; lib_path?: string | null };
   glibc?: { system?: string | null; layer_needs?: string | null; layer_ok?: boolean | null; cli_needs?: string | null; cli_ok?: boolean | null };
   cli?: { available?: boolean; returncode?: number; output?: string; error?: string };
+  conf?: { exists?: boolean; version?: number | null; version_ok?: boolean; profiles?: number; error?: string };
   error?: string;
 }
 
@@ -479,6 +480,17 @@ function Content() {
                     `engine: ${doctor.glibc?.layer_needs ?? "?"} · system: ${doctor.glibc?.system ?? "?"}`,
                   )}
                 />
+                {doctor.conf ? (
+                  <StateLine
+                    ok={doctor.conf.version_ok === true}
+                    warn={doctor.conf.version_ok !== true}
+                    label="conf.toml version"
+                    detail={t(
+                      `version = ${doctor.conf.version ?? "?"} (${doctor.conf.profiles ?? 0} profils)`,
+                      `version = ${doctor.conf.version ?? "?"} (${doctor.conf.profiles ?? 0} profiles)`,
+                    )}
+                  />
+                ) : null}
                 {doctor.cli?.available ? (
                   <StateLine ok={doctor.cli.returncode === 0} warn={doctor.cli.returncode !== 0} label="lsfg-vk-cli validate" detail={doctor.cli.output || doctor.cli.error || `rc=${doctor.cli.returncode}`} />
                 ) : (
