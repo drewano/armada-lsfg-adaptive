@@ -1,19 +1,24 @@
 {
   "name": "armada-lsfg-adaptive",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Adaptive LSFG-VK frame generation for Armada OS (Decky plugin)",
   "type": "module",
   "remote_binary_bundling": true,
   "remote_binary": [
     {
-      "url": "https://github.com/drewano/armada-lsfg-adaptive/releases/download/v0.1.0/liblsfg-vk-layer.so",
-      "sha256hash": "dc7e3eeed037c913bd760f18e86212440d0c3d060ba81779b8c36074de1fd982",
+      "url": "https://github.com/drewano/armada-lsfg-adaptive/releases/download/v0.2.0/liblsfg-vk-layer.so",
+      "sha256hash": "b49011283e072cfb4dbc8adb0ad65be64a16e0cc0d4981a64b7b305580de863b",
       "name": "liblsfg-vk-layer.so"
     },
     {
-      "url": "https://github.com/drewano/armada-lsfg-adaptive/releases/download/v0.1.0/layer-info.json",
-      "sha256hash": "af8e322aabd7c1015e3576f36b096acebc233aba24e746d945a91186aa923086",
+      "url": "https://github.com/drewano/armada-lsfg-adaptive/releases/download/v0.2.0/layer-info.json",
+      "sha256hash": "5828b4922419f956c795a776e83f76b6d0b0b4f634ab77bac63265d8d4e28611",
       "name": "layer-info.json"
+    },
+    {
+      "url": "https://github.com/drewano/armada-lsfg-adaptive/releases/download/v0.2.0/lsfg-vk-cli",
+      "sha256hash": "03462a51d9cc88c04a79e18882f0f34951a7cf2086eef5a14d0545a731d9af77",
+      "name": "lsfg-vk-cli"
     }
   ],
   "scripts": {
