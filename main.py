@@ -48,14 +48,16 @@ class Plugin:
         return await asyncio.to_thread(fn, *args)
 
     def _ok(self, extra: dict | None = None) -> dict:
+        self._last_error = None
         out = {"ok": True}
         if extra:
             out.update(extra)
         return out
 
     def _err(self, exc: Exception) -> dict:
-        decky.logger.error("%s: %s", type(exc).__name__, exc)
-        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        self._last_error = f"{type(exc).__name__}: {exc}"
+        decky.logger.error("%s", self._last_error)
+        return {"ok": False, "error": self._last_error}
 
     # -------------------------------------------------------------- lifecycle
 
@@ -74,6 +76,7 @@ class Plugin:
         )
         self._scan_lock = asyncio.Lock()
         self._panel: dict | None = None
+        self._last_error: str | None = None
         decky.logger.info(
             "Armada LSFG Adaptive %s started (arch=%s, home=%s)",
             decky.DECKY_PLUGIN_VERSION,
@@ -113,6 +116,7 @@ class Plugin:
             "panel": panel,
             "host_arch": armada_mod.host_arch(),
             "adaptive_supported": bool(capabilities.get("adaptive", True)),
+            "last_error": self._last_error,
         }
 
     async def get_status(self) -> dict:

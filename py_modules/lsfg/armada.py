@@ -24,7 +24,22 @@ def is_armada() -> bool:
     return DEVICE_ENV.exists()
 
 
+# The decky PluginLoader binary may run under FEX emulation on Armada, in
+# which case platform.machine() reports the emulated arch (x86_64) instead of
+# the real host. Probe the userspace ELF loaders instead: they reflect the
+# actual system, emulation or not.
+_ELF_LOADERS = (
+    ("/lib/ld-linux-aarch64.so.1", "aarch64"),
+    ("/lib/ld-linux-x86-64.so.2", "x86_64"),
+    ("/lib/ld-linux-armhf.so.3", "arm"),
+    ("/lib/ld-linux.so.2", "x86"),
+)
+
+
 def host_arch() -> str:
+    for loader, arch in _ELF_LOADERS:
+        if os.path.exists(loader):
+            return arch
     machine = platform.machine().lower()
     return {
         "aarch64": "aarch64",

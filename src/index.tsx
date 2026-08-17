@@ -64,6 +64,7 @@ interface Status {
   };
   host_arch: string;
   adaptive_supported: boolean;
+  last_error: string | null;
 }
 
 interface GameInfo {
@@ -355,6 +356,9 @@ function Content() {
       <PanelSection title={t("Statut", "Status")}>
         {status ? (
           <>
+            {status.last_error ? (
+              <StateLine warn label={t("Dernière erreur", "Last error")} detail={status.last_error} />
+            ) : null}
             <StateLine
               ok={status.layer.bundled.available}
               label={t("Moteur LSFG bundlé", "Bundled LSFG engine")}

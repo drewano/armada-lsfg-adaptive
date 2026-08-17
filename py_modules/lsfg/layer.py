@@ -165,6 +165,8 @@ class LayerManager:
         if not bundled["arch_ok"]:
             raise LayerError(
                 f"bundled layer arch is {bundled['arch']}, expected {self.host_arch}"
+                " (if this device is an Armada aarch64 handheld, the arch probe"
+                " may have failed - check the plugin log and please report)"
             )
         info = load_layer_info(self.bin_dir) or {}
 
