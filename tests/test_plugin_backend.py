@@ -121,14 +121,15 @@ def test_every_method_returns_jsonable_shapes(plugin, tmp_path):
         "get_steam_games": run(plugin.get_steam_games()),
         "add_steam_game": run(plugin.add_steam_game("1091500", "bin/x64/Cyberpunk2077.exe", "Cyberpunk 2077")),
         "get_profiles": run(plugin.get_profiles()),
-        "set_profile_enabled": run(plugin.set_profile_enabled("bin/x64/cyberpunk2077.exe", True)),
-        "set_profile_adaptive": run(plugin.set_profile_adaptive("bin/x64/cyberpunk2077.exe", True)),
-        "set_profile_target_fps": run(plugin.set_profile_target_fps("bin/x64/cyberpunk2077.exe", 120)),
-        "set_profile_max_multiplier": run(plugin.set_profile_max_multiplier("bin/x64/cyberpunk2077.exe", 3)),
-        "set_profile_multiplier": run(plugin.set_profile_multiplier("bin/x64/cyberpunk2077.exe", 2)),
-        "set_profile_flow_scale": run(plugin.set_profile_flow_scale("bin/x64/cyberpunk2077.exe", 0.5)),
-        "set_profile_performance_mode": run(plugin.set_profile_performance_mode("bin/x64/cyberpunk2077.exe", True)),
-        "set_profile_stable_cadence": run(plugin.set_profile_stable_cadence("bin/x64/cyberpunk2077.exe", True)),
+        "set_profile_enabled": run(plugin.set_profile_enabled("cyberpunk2077.exe", True)),
+        "set_profile_adaptive": run(plugin.set_profile_adaptive("cyberpunk2077.exe", False)),
+        "set_profile_target_fps": run(plugin.set_profile_target_fps("cyberpunk2077.exe", 120)),
+        "set_profile_max_multiplier": run(plugin.set_profile_max_multiplier("cyberpunk2077.exe", 3)),
+        "set_profile_multiplier": run(plugin.set_profile_multiplier("cyberpunk2077.exe", 2)),
+        "set_profile_flow_scale": run(plugin.set_profile_flow_scale("cyberpunk2077.exe", 0.5)),
+        "set_profile_performance_mode": run(plugin.set_profile_performance_mode("cyberpunk2077.exe", True)),
+        "set_profile_stable_cadence": run(plugin.set_profile_stable_cadence("cyberpunk2077.exe", True)),
+        "run_doctor": run(plugin.run_doctor()),
         "get_active_profile_keys": run(plugin.get_active_profile_keys()),
         "get_dashboard_state": run(plugin.get_dashboard_state()),
         "set_global_dll": run(plugin.set_global_dll("/tmp/does-not-matter.dll")),
@@ -344,9 +345,76 @@ def test_active_profile_keys_fake_proc(plugin, tmp_path):
     (other / "environ").write_bytes(b"HOME=/\0\0")
 
     active = plugin._active_keys_blocking(str(proc))
-    assert active == ["bin/x64/cyberpunk2077.exe"]
+    assert active == ["cyberpunk2077.exe"]
 
 
 def test_active_keys_no_proc(plugin, tmp_path):
     run(plugin.add_steam_game("1", "A.exe", "A"))
     assert plugin._active_keys_blocking(str(tmp_path / "nope")) == []
+
+
+# ------------------------------------------------------- v0.2 engine changes
+
+def test_conf_writes_version_key_and_dual_active_in(plugin):
+    res = run(plugin.add_steam_game("55", "bin/Win64/Deep.exe", "Deep"))
+    assert res["ok"]
+    assert res["profile"]["key"] == "deep.exe"
+    assert res["profile"]["active_in"] == ["Deep.exe", "bin/Win64/Deep.exe"]
+    import tomllib
+
+    conf = Path(plugin.user_home) / ".config" / "lsfg-vk" / "conf.toml"
+    doc = tomllib.loads(conf.read_text(encoding="utf-8"))
+    assert doc["version"] == 2
+    assert doc["profile"][0]["active_in"] == ["Deep.exe", "bin/Win64/Deep.exe"]
+
+
+def test_readd_same_game_merges_instead_of_duplicating(plugin):
+    run(plugin.add_steam_game("66", "bin/Game.exe", "Game"))
+    run(plugin.set_profile_multiplier("game.exe", 3))
+    res = run(plugin.add_steam_game("66", "bin/Game.exe", "Game"))
+    assert res["ok"]
+    profiles = run(plugin.get_profiles())["profiles"]
+    matching = [p for p in profiles if p["key"] == "game.exe"]
+    assert len(matching) == 1
+    assert matching[0]["multiplier"] == 3  # settings preserved through merge
+
+
+def test_heal_profiles_adds_basename_to_legacy_profiles(plugin):
+    import lsfg.config as config_mod
+
+    legacy = config_mod.ProfileData(
+        key="bin/x64/legacy.exe", name="Legacy", active_in=["bin/x64/Legacy.exe"],
+    )
+    plugin.settings.upsert_profile(legacy)
+    run(plugin._main())  # simulate plugin restart
+    healed = plugin.settings.get_profile("bin/x64/legacy.exe")
+    assert healed is not None
+    assert "Legacy.exe" in healed.active_in
+    conf = (Path(plugin.user_home) / ".config" / "lsfg-vk" / "conf.toml").read_text()
+    assert "Legacy.exe" in conf
+
+
+def test_adaptive_defaults_to_engine_capability(plugin):
+    make_fake_bin(Path(plugin.decky.DECKY_PLUGIN_DIR))
+    info_path = Path(plugin.decky.DECKY_PLUGIN_DIR) / "bin" / "layer-info.json"
+    info = json.loads(info_path.read_text())
+    info["capabilities"]["adaptive"] = False
+    info_path.write_text(json.dumps(info))
+    res = run(plugin.add_steam_game("77", "Cap.exe", "Cap"))
+    assert res["profile"]["adaptive"] is False
+    info["capabilities"]["adaptive"] = True
+    info_path.write_text(json.dumps(info))
+    res = run(plugin.add_steam_game("88", "Cap2.exe", "Cap2"))
+    assert res["profile"]["adaptive"] is True
+
+
+def test_doctor_reports_structure(plugin):
+    make_fake_bin(Path(plugin.decky.DECKY_PLUGIN_DIR))
+    run(plugin.install_layer())
+    result = run(plugin.run_doctor())
+    assert_jsonable(result, "doctor")
+    assert result["manifest"]["exists"] is True
+    assert result["manifest"]["lib_exists"] is True
+    assert result["manifest"]["has_enable_environment"] is False
+    assert result["arch"]["ok"] is True
+    assert "glibc" in result and "cli" in result

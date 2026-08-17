@@ -38,6 +38,20 @@ from pathlib import Path
 BACKUP_SUFFIX = ".armada-lsfg-adaptive.bak"
 TEMP_SUFFIX = ".armada-lsfg-adaptive.tmp"
 
+# The v2 engine line (PancakeTAS develop / its forks) expects a top-level
+# `version = 2` marker in conf.toml; the reference working setup on Armada
+# ships it, so we always write it.
+CONF_VERSION_KEY = "version = 2"
+
+_VERSION_RE = re.compile(r"(?m)^version\s*=\s*\S+.*$")
+
+
+def with_conf_version(global_section: str) -> str:
+    """Ensure the top-level `version = 2` marker the v2 engine expects."""
+    if _VERSION_RE.search(global_section):
+        return _VERSION_RE.sub(CONF_VERSION_KEY, global_section, count=1)
+    return CONF_VERSION_KEY + "\n\n" + global_section
+
 VALID_MULTIPLIERS = (2, 3, 4)
 VALID_FLOW_SCALES = (0.25, 0.5, 0.75, 1.0)
 TARGET_FPS_MIN = 30
@@ -102,12 +116,17 @@ class ProfileData:
 
     @classmethod
     def new_game(cls, exe: str, name: str, appid: str | None = None,
-                 target_fps: int = 120) -> "ProfileData":
+                 target_fps: int = 120, adaptive: bool = True) -> "ProfileData":
+        # Match on both the basename and the full relative path: under FEX the
+        # engine may see either form as the process identity.
+        base = os.path.basename(exe.replace("\\", "/"))
+        active_in = [exe] if base.lower() == exe.lower() else [base, exe]
         p = cls(
-            key=exe.lower(),
+            key=base.lower(),
             name=name or exe,
-            active_in=[exe],
+            active_in=active_in,
             appid=appid,
+            adaptive=adaptive,
             target_fps=clamp(int(target_fps), TARGET_FPS_MIN, TARGET_FPS_MAX),
         )
         p.validate()
@@ -267,14 +286,14 @@ def write_config(path: Path, managed: list[ProfileData], dll_path: str | None = 
         out = "\n".join(chunks).lstrip("\n")
         return out + "\n" if out else out
 
-    new_text = assemble(set_global_dll(global_text, dll_path))
+    new_text = assemble(with_conf_version(set_global_dll(global_text, dll_path)))
     try:
         tomllib.loads(new_text)
     except tomllib.TOMLDecodeError:
         # the pre-existing [global] section itself is broken: quarantine the
         # whole old file and start fresh rather than leaving the user stuck
         rejected_blocks.append(text)
-        new_text = assemble(set_global_dll("", dll_path))
+        new_text = assemble(with_conf_version(set_global_dll("", dll_path)))
         try:
             tomllib.loads(new_text)
         except tomllib.TOMLDecodeError as exc:

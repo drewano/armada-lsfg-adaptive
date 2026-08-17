@@ -14,6 +14,7 @@ import decky
 
 from lsfg import armada as armada_mod
 from lsfg import config as config_mod
+from lsfg import doctor as doctor_mod
 from lsfg import layer as layer_mod
 from lsfg import settings as settings_mod
 from lsfg import steam as steam_mod
@@ -77,12 +78,37 @@ class Plugin:
         self._scan_lock = asyncio.Lock()
         self._panel: dict | None = None
         self._last_error: str | None = None
+        self._heal_profiles()
         decky.logger.info(
             "Armada LSFG Adaptive %s started (arch=%s, home=%s)",
             decky.DECKY_PLUGIN_VERSION,
             armada_mod.host_arch(),
             self.user_home,
         )
+
+    def _heal_profiles(self) -> None:
+        """Migration for profiles created before dual active_in matching.
+
+        v0.1.x profiles only matched the full executable path; the engine
+        under FEX may report the bare basename, so make sure both forms are
+        always present.
+        """
+        try:
+            changed = False
+            for p in self.settings.profiles().values():
+                if not p.active_in:
+                    continue
+                base = os.path.basename(p.active_in[0].replace("\\", "/"))
+                known = {entry.lower() for entry in p.active_in}
+                if base and base.lower() not in known:
+                    p.active_in.insert(0, base)
+                    self.settings.upsert_profile(p)
+                    changed = True
+            if changed:
+                self._rewrite_conf()
+                decky.logger.info("profile matching healed: basename entries added")
+        except Exception as exc:  # noqa: BLE001
+            decky.logger.warning("profile healing skipped: %s", exc)
 
     async def _unload(self):
         decky.logger.info("Armada LSFG Adaptive stopped")
@@ -121,6 +147,20 @@ class Plugin:
 
     async def get_status(self) -> dict:
         return await self._to_thread(self._status_blocking)
+
+    async def run_doctor(self) -> dict:
+        """One-tap on-device diagnostics: manifest, arch, glibc fit, CLI validation."""
+        def blocking() -> dict:
+            return doctor_mod.run_doctor(
+                self.layer,
+                self._conf_path(),
+                Path(decky.DECKY_PLUGIN_DIR) / "bin",
+            )
+
+        try:
+            return await self._to_thread(blocking)
+        except Exception as exc:  # noqa: BLE001
+            return self._err(exc)
 
     # ------------------------------------------------------------------- layer
 
@@ -185,11 +225,42 @@ class Plugin:
 
     # ---------------------------------------------------------------- profiles
 
+    def _engine_adaptive_supported(self) -> bool:
+        try:
+            caps = self.layer.status()["bundled"].get("capabilities") or {}
+        except Exception:  # noqa: BLE001
+            return False
+        return bool(caps.get("adaptive", False))
+
     def _add_game_blocking(self, appid: str, executable: str, name: str) -> dict:
         panel = self._panel or armada_mod.panel_info()
         default_fps = armada_mod.default_target_fps(panel.get("max_refresh"))
+        # merging: re-adding a game whose executable is already matched
+        # updates the existing profile instead of creating a duplicate
+        existing = None
+        exe_lower = executable.lower()
+        for profile in self.settings.profiles().values():
+            if exe_lower in {entry.lower() for entry in profile.active_in}:
+                existing = profile
+                break
+        if existing is not None:
+            base = os.path.basename(executable.replace("\\", "/"))
+            for entry in (base, executable):
+                if entry.lower() not in {e.lower() for e in existing.active_in}:
+                    existing.active_in.append(entry)
+            existing.name = name or existing.name
+            existing.appid = appid or existing.appid
+            self.settings.upsert_profile(existing)
+            foreign = self._rewrite_conf()
+            return {
+                "ok": True,
+                "profile": existing.to_json(),
+                "foreign_keys": foreign.get("foreign_keys", []),
+            }
         profile = config_mod.ProfileData.new_game(
-            executable, name, appid=appid, target_fps=default_fps
+            executable, name, appid=appid,
+            target_fps=default_fps,
+            adaptive=self._engine_adaptive_supported(),
         )
         self.settings.upsert_profile(profile)
         foreign = self._rewrite_conf()

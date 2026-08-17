@@ -74,6 +74,15 @@ interface GameInfo {
   recommended: string | null;
 }
 
+interface DoctorResult {
+  host_arch?: string;
+  manifest?: { exists?: boolean; layer_name?: string | null; library_path?: string; lib_exists?: boolean; has_enable_environment?: boolean; error?: string };
+  arch?: { lib?: string | null; expected?: string; ok?: boolean; lib_path?: string | null };
+  glibc?: { system?: string | null; layer_needs?: string | null; layer_ok?: boolean | null; cli_needs?: string | null; cli_ok?: boolean | null };
+  cli?: { available?: boolean; returncode?: number; output?: string; error?: string };
+  error?: string;
+}
+
 // ---------------------------------------------------------------- bindings
 
 const getDashboardState = callable<[], { status: Status; profiles: { profiles: ProfileData[]; foreign: ProfileData[] } }>("get_dashboard_state");
@@ -85,6 +94,7 @@ const getProfiles = callable<[], { profiles: ProfileData[]; foreign: ProfileData
 const addSteamGame = callable<[appid: string, executable: string, name: string], { ok: boolean; error?: string }>("add_steam_game");
 const removeManagedProfile = callable<[key: string], { ok: boolean; error?: string }>("remove_managed_profile");
 const getActiveProfileKeys = callable<[], string[]>("get_active_profile_keys");
+const runDoctor = callable<[], DoctorResult>("run_doctor");
 
 const setProfileEnabled = callable<[key: string, enabled: boolean], { ok: boolean; error?: string }>("set_profile_enabled");
 const setProfileAdaptive = callable<[key: string, adaptive: boolean], { ok: boolean; error?: string }>("set_profile_adaptive");
@@ -134,7 +144,7 @@ function StateLine({ ok, warn, label, detail }: { ok?: boolean; warn?: boolean; 
 
 // ---------------------------------------------------------------- profile editor
 
-function ProfileEditor({ profile, running, onChange }: { profile: ProfileData; running: boolean; onChange: () => void }) {
+function ProfileEditor({ profile, running, adaptiveSupported, onChange }: { profile: ProfileData; running: boolean; adaptiveSupported: boolean; onChange: () => void }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -185,16 +195,15 @@ function ProfileEditor({ profile, running, onChange }: { profile: ProfileData; r
           <PanelSectionRow>
             <ToggleField
               label={t("Adaptatif", "Adaptive")}
-              description={t(
-                "Ajuste le multiplicateur pour viser le FPS cible",
-                "Adjusts the multiplier to hit the target FPS",
-              )}
+              description={adaptiveSupported
+                ? t("Ajuste le multiplicateur pour viser le FPS cible", "Adjusts the multiplier to hit the target FPS")
+                : t("Non supporté par ce moteur (multiplicateur fixe)", "Not supported by this engine (fixed multiplier)")}
               checked={profile.adaptive}
-              disabled={busy}
+              disabled={busy || !adaptiveSupported}
               onChange={(v) => mutate(() => setProfileAdaptive(profile.key, v), () => {})}
             />
           </PanelSectionRow>
-          {profile.adaptive ? (
+          {profile.adaptive && adaptiveSupported ? (
             <>
               <PanelSectionRow>
                 <DropdownItem
@@ -279,6 +288,7 @@ function Content() {
   const [scanProgress, setScanProgress] = useState<number | null>(null);
   const [activeKeys, setActiveKeys] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [doctor, setDoctor] = useState<DoctorResult | null>(null);
 
   const reloadProfiles = useCallback(async () => {
     const res = await getProfiles();
@@ -353,7 +363,20 @@ function Content() {
     setBusy(false);
   };
 
-  const managedKeys = useMemo(() => new Set(profiles.map((p) => p.key)), [profiles]);
+  const doDoctor = async () => {
+    setBusy(true);
+    try {
+      setDoctor(await runDoctor());
+    } catch (e: any) {
+      showError(t("Diagnostic échoué", "Doctor failed"), String(e?.message ?? e));
+    }
+    setBusy(false);
+  };
+
+  const managedKeys = useMemo(
+    () => new Set(profiles.flatMap((p) => [p.key, ...p.active_in.map((a) => a.toLowerCase())])),
+    [profiles],
+  );
 
   const addableGames = useMemo(() => {
     return games.filter((g) => {
@@ -432,6 +455,38 @@ function Content() {
                 </ButtonItem>
               </PanelSectionRow>
             ) : null}
+            <PanelSectionRow>
+              <ButtonItem layout="below" onClick={doDoctor} disabled={busy}>
+                {t("Diagnostic complet", "Full diagnostic")}
+              </ButtonItem>
+            </PanelSectionRow>
+            {doctor ? (
+              <>
+                <StateLine ok={doctor.manifest?.exists} label="Manifest" detail={doctor.manifest?.layer_name ?? doctor.manifest?.error ?? undefined} />
+                <StateLine
+                  ok={doctor.manifest?.lib_exists}
+                  warn={doctor.manifest?.exists && !doctor.manifest?.lib_exists}
+                  label={t("Librairie (manifest)", "Library (manifest)")}
+                  detail={doctor.manifest?.library_path ?? undefined}
+                />
+                <StateLine ok={doctor.arch?.ok} label={t("Architecture", "Architecture")} detail={`${doctor.arch?.lib ?? "?"} / ${doctor.arch?.expected ?? "?"}`} />
+                <StateLine
+                  ok={doctor.glibc?.layer_ok === true}
+                  warn={doctor.glibc?.layer_ok == null}
+                  label="glibc"
+                  detail={t(
+                    `moteur: ${doctor.glibc?.layer_needs ?? "?"} · système: ${doctor.glibc?.system ?? "?"}`,
+                    `engine: ${doctor.glibc?.layer_needs ?? "?"} · system: ${doctor.glibc?.system ?? "?"}`,
+                  )}
+                />
+                {doctor.cli?.available ? (
+                  <StateLine ok={doctor.cli.returncode === 0} warn={doctor.cli.returncode !== 0} label="lsfg-vk-cli validate" detail={doctor.cli.output || doctor.cli.error || `rc=${doctor.cli.returncode}`} />
+                ) : (
+                  <StateLine warn label={t("CLI non bundlé", "CLI not bundled")} />
+                )}
+                {doctor.error ? <StateLine warn label="Error" detail={doctor.error} /> : null}
+              </>
+            ) : null}
           </>
         ) : (
           <PanelSectionRow>{t("Chargement…", "Loading…")}</PanelSectionRow>
@@ -445,7 +500,7 @@ function Content() {
           </PanelSectionRow>
         ) : (
           profiles.map((p) => (
-            <ProfileEditor key={p.key} profile={p} running={activeKeys.includes(p.key)} onChange={reloadProfiles} />
+            <ProfileEditor key={p.key} profile={p} running={activeKeys.includes(p.key)} adaptiveSupported={!!status?.adaptive_supported} onChange={reloadProfiles} />
           ))
         )}
         {foreign.length > 0 ? (

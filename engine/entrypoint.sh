@@ -4,13 +4,21 @@
 #   - layer-info.json       (metadata consumed by the plugin's layer manager)
 set -euo pipefail
 
-: "${LSFG_SOURCE:=experimental}"
+: "${LSFG_SOURCE:=upstream}"
+UPSTREAM_REPO="${UPSTREAM_REPO:-https://github.com/PancakeTAS/lsfg-vk}"
 EXPERIMENTAL_REPO="${EXPERIMENTAL_REPO:-https://github.com/eugeniosegala/lsfg-vk-experimental}"
 ZENSENSHI_REPO="${ZENSENSHI_REPO:-https://github.com/Zensenshi/lsfg-vk-odin2-armada}"
+# PancakeTAS develop @ 8b0da26 (v2.0.0-dev): the exact revision validated on
+# Armada OS hardware (Adreno/Turnip, x86 games via Proton/FEX) by the
+# lsfg-vk-odin2-armada package.
+: "${LSFG_UPSTREAM_REF:=8b0da2661c6f3473a7fccc8ba643880050e71642}"
 : "${LSFG_REF:=276030d4925c40038a61ecd66bd49ce777faec8c}"
 : "${LSFG_ZENSENSHI_REF:=main}"
 
 case "$LSFG_SOURCE" in
+  upstream)
+    REPO="$UPSTREAM_REPO"; REF="$LSFG_UPSTREAM_REF"
+    ADAPTIVE=false; DEFAULT_LAYER_NAME="VK_LAYER_LSFGVK_frame_generation" ;;
   experimental)
     REPO="$EXPERIMENTAL_REPO"; REF="$LSFG_REF"
     ADAPTIVE=true; DEFAULT_LAYER_NAME="VK_LAYER_LSFGVK_experimental_frame_generation" ;;
@@ -18,7 +26,7 @@ case "$LSFG_SOURCE" in
     REPO="$ZENSENSHI_REPO"; REF="$LSFG_ZENSENSHI_REF"
     ADAPTIVE=false; DEFAULT_LAYER_NAME="VK_LAYER_LSFGVK_frame_generation" ;;
   *)
-    echo "unknown LSFG_SOURCE: $LSFG_SOURCE (expected experimental|zensenshi)" >&2; exit 1 ;;
+    echo "unknown LSFG_SOURCE: $LSFG_SOURCE (expected upstream|experimental|zensenshi)" >&2; exit 1 ;;
 esac
 
 SRC=/work/src
@@ -38,7 +46,7 @@ cmake -S "$SRC" -B /work/build \
   -DCMAKE_BUILD_TYPE=Release \
   -DBUILD_TESTING=OFF \
   -DLSFGVK_BUILD_UI=OFF \
-  -DLSFGVK_BUILD_CLI=OFF
+  -DLSFGVK_BUILD_CLI=ON
 cmake --build /work/build --parallel "$(nproc)"
 
 LAYER_LIB="$(find /work/build \( -name 'liblsfg-vk-layer.so' -o -name 'liblsfgVkLayer.so' \) -type f | head -n1 || true)"
@@ -50,6 +58,16 @@ fi
 echo "==> built $LAYER_LIB"
 
 cp "$LAYER_LIB" "$OUT/$(basename "$LAYER_LIB")"
+
+# the upstream v2.0.0-dev tree may not have the CLI target; ship it when
+# present so the plugin's doctor can run `lsfg-vk-cli validate` on device
+CLI_BIN="$(find /work/build -type f -name 'lsfg-vk-cli' | head -n1 || true)"
+if [ -n "$CLI_BIN" ]; then
+  cp "$CLI_BIN" "$OUT/lsfg-vk-cli"
+  echo "==> bundled lsfg-vk-cli"
+else
+  echo "==> lsfg-vk-cli not built by this source; skipping"
+fi
 
 echo "==> writing layer-info.json"
 LSFG_SOURCE="$LSFG_SOURCE" VERSION="$VERSION" \

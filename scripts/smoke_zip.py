@@ -96,10 +96,11 @@ def main() -> int:
     checks.append(("add_steam_game",
                    asyncio.run(plugin.add_steam_game("12345", "bin/DemoGame.exe", "Demo Game"))))
     checks.append(("set_profile_target_fps",
-                   asyncio.run(plugin.set_profile_target_fps("bin/demogame.exe", 120))))
+                   asyncio.run(plugin.set_profile_target_fps("demogame.exe", 120))))
     checks.append(("set_profile_adaptive",
-                   asyncio.run(plugin.set_profile_adaptive("bin/demogame.exe", True))))
+                   asyncio.run(plugin.set_profile_adaptive("demogame.exe", True))))
     checks.append(("get_status", asyncio.run(plugin.get_status())))
+    checks.append(("run_doctor", asyncio.run(plugin.run_doctor())))
     checks.append(("get_profiles", asyncio.run(plugin.get_profiles())))
     checks.append(("get_dashboard_state", asyncio.run(plugin.get_dashboard_state())))
     checks.append(("get_active_profile_keys", asyncio.run(plugin.get_active_profile_keys())))
