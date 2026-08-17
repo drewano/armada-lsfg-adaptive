@@ -100,6 +100,10 @@ class SettingsStore:
         cache = self._state.get("scan_cache")
         return cache if isinstance(cache, dict) else None
 
-    def set_scan_cache(self, games: list[dict]) -> None:
-        self._state["scan_cache"] = {"games": games, "timestamp": int(time.time())}
+    def set_scan_cache(self, games: list[dict], lossless_dll: str | None = None) -> None:
+        self._state["scan_cache"] = {
+            "games": games,
+            "lossless_dll": lossless_dll,
+            "timestamp": int(time.time()),
+        }
         self.save()

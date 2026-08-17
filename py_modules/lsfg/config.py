@@ -255,24 +255,30 @@ def write_config(path: Path, managed: list[ProfileData], dll_path: str | None = 
         foreign_blocks.append(block)
         foreign_keys.append(key)
 
-    parts: list[str] = [set_global_dll(global_text, dll_path)]
-    for p in sorted(managed, key=lambda x: (x.name or x.key).lower()):
-        if p.enabled:
-            parts.append("\n" + render_profile(p))
-    for block in foreign_blocks:
-        if not block.endswith("\n"):
-            block += "\n"
-        parts.append("\n" + block)
+    def assemble(global_section: str) -> str:
+        chunks = [global_section]
+        for p in sorted(managed, key=lambda x: (x.name or x.key).lower()):
+            if p.enabled:
+                chunks.append("\n" + render_profile(p))
+        for block in foreign_blocks:
+            if not block.endswith("\n"):
+                block += "\n"
+            chunks.append("\n" + block)
+        out = "\n".join(chunks).lstrip("\n")
+        return out + "\n" if out else out
 
-    new_text = "\n".join(parts).lstrip("\n")
-    if new_text and not new_text.endswith("\n"):
-        new_text += "\n"
-
-    # validate before touching the file
+    new_text = assemble(set_global_dll(global_text, dll_path))
     try:
         tomllib.loads(new_text)
-    except tomllib.TOMLDecodeError as exc:
-        raise ConfigError(f"refusing to write invalid TOML: {exc}") from exc
+    except tomllib.TOMLDecodeError:
+        # the pre-existing [global] section itself is broken: quarantine the
+        # whole old file and start fresh rather than leaving the user stuck
+        rejected_blocks.append(text)
+        new_text = assemble(set_global_dll("", dll_path))
+        try:
+            tomllib.loads(new_text)
+        except tomllib.TOMLDecodeError as exc:
+            raise ConfigError(f"refusing to write invalid TOML: {exc}") from exc
 
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():

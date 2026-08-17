@@ -379,7 +379,14 @@ function Content() {
               label={t("Appareil", "Device")}
               detail={
                 status.panel.is_armada
-                  ? `${status.panel.device ?? "Armada"} · ${status.panel.refresh_rates.join("/") ?? "?"} Hz`
+                  ? [
+                      status.panel.device ?? "Armada",
+                      status.panel.refresh_rates.length
+                        ? `${status.panel.refresh_rates.join("/")} Hz`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
                   : t("Armada OS non détecté", "Armada OS not detected")
               }
             />

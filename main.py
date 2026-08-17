@@ -144,7 +144,7 @@ class Plugin:
         progress(5)
         result = steam_mod.scan_libraries(self.user_home)
         progress(80)
-        self.settings.set_scan_cache(result["games"])
+        self.settings.set_scan_cache(result["games"], lossless_dll=result["lossless_dll"])
         if result["lossless_dll"] and not self.settings.dll_path:
             self.settings.dll_path = result["lossless_dll"]
         progress(95)
@@ -296,7 +296,7 @@ class Plugin:
 
     # ------------------------------------------------------------ running game
 
-    def _active_keys_blocking(self) -> list[str]:
+    def _active_keys_blocking(self, proc_root: str = "/proc") -> list[str]:
         managed = self.settings.profiles()
         if not managed:
             return []
@@ -306,22 +306,22 @@ class Plugin:
         for p in managed.values():
             for entry in p.active_in:
                 by_proc[entry.lower().lstrip("/")] = p.key
-                by_proc[Path(entry).name.lower()] = p.key
+                by_proc[os.path.basename(entry).lower()] = p.key
             if p.appid:
                 by_appid[str(p.appid)] = p.key
         active: set[str] = set()
         try:
-            pids = os.listdir("/proc")
+            pids = os.listdir(proc_root)
         except OSError:
             return sorted(active)
         for pid in pids:
             if not pid.isdigit():
                 continue
             try:
-                with open(f"/proc/{pid}/comm", encoding="utf-8", errors="replace") as fh:
+                with open(f"{proc_root}/{pid}/comm", encoding="utf-8", errors="replace") as fh:
                     comm = fh.read().strip().lower()
                 cmd = ""
-                with open(f"/proc/{pid}/cmdline", "rb") as fh:
+                with open(f"{proc_root}/{pid}/cmdline", "rb") as fh:
                     argv = fh.read().split(b"\x00")
                 if argv:
                     cmd = os.path.basename(argv[0].decode("utf-8", errors="replace")).lower()
@@ -329,7 +329,7 @@ class Plugin:
                     if ident in by_proc:
                         active.add(by_proc[ident])
                 env_appid = None
-                with open(f"/proc/{pid}/environ", "rb") as fh:
+                with open(f"{proc_root}/{pid}/environ", "rb") as fh:
                     for item in fh.read().split(b"\x00"):
                         if item.startswith(b"SteamAppId="):
                             env_appid = item.split(b"=", 1)[1].decode(
