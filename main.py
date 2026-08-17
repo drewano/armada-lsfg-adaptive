@@ -44,8 +44,8 @@ class Plugin:
             return cache["lossless_dll"]
         return None
 
-    async def _to_thread(self, fn, *args):
-        return await asyncio.to_thread(fn, *args)
+    async def _to_thread(self, fn, *args, **kwargs):
+        return await asyncio.to_thread(fn, *args, **kwargs)
 
     def _ok(self, extra: dict | None = None) -> dict:
         self._last_error = None
@@ -193,7 +193,11 @@ class Plugin:
         )
         self.settings.upsert_profile(profile)
         foreign = self._rewrite_conf()
-        return {"profile": profile.to_json(), "foreign_keys": foreign.get("foreign_keys", [])}
+        return {
+            "ok": True,
+            "profile": profile.to_json(),
+            "foreign_keys": foreign.get("foreign_keys", []),
+        }
 
     async def add_steam_game(self, appid: str, executable: str, name: str) -> dict:
         try:
@@ -306,7 +310,11 @@ class Plugin:
             if p.appid:
                 by_appid[str(p.appid)] = p.key
         active: set[str] = set()
-        for pid in os.listdir("/proc"):
+        try:
+            pids = os.listdir("/proc")
+        except OSError:
+            return sorted(active)
+        for pid in pids:
             if not pid.isdigit():
                 continue
             try:

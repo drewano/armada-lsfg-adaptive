@@ -124,20 +124,17 @@ function ProfileEditor({ profile, running, onChange }: { profile: ProfileData; r
   const mutate = useCallback(
     async (fn: () => Promise<{ ok: boolean; error?: string }>, optimistic: () => void) => {
       setBusy(true);
-      const backup = () => onChange(); // reload truth from backend on failure
       optimistic();
       try {
         const res = await fn();
         if (!res?.ok) {
           showError(t("Échec", "Failed"), res?.error);
-          backup();
         }
       } catch (e: any) {
         showError(t("Échec", "Failed"), String(e?.message ?? e));
-        backup();
       } finally {
         setBusy(false);
-        onChange();
+        onChange(); // single reload from the backend's point of truth
       }
     },
     [onChange],

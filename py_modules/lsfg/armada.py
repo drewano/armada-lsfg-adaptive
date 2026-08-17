@@ -81,7 +81,11 @@ def read_device_env() -> dict[str, str]:
 
 def _gamescope_env() -> dict[str, str]:
     """Fallback: scrape ARMADA_* vars from the running gamescope process."""
-    for pid in os.listdir("/proc"):
+    try:
+        pids = os.listdir("/proc")
+    except OSError:  # not Linux / no procfs
+        return {}
+    for pid in pids:
         if not pid.isdigit():
             continue
         try:
